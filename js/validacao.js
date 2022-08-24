@@ -1,5 +1,5 @@
 export function valida(input) {
-    const tipoDeInput = input.dataset.tipoDeInput
+    const tipoDeInput = input.dataset.tipo
 
     if (validadores[tipoDeInput]) {
         validadores[tipoDeInput](input)
@@ -10,41 +10,41 @@ export function valida(input) {
         input.parentElement.querySelector('.input-mensagem-erro').innerHTML = ''
     } else {
         input.parentElement.classList.add('input-container--invalido')
-        nput.parentElement.querySelector('.input-mensagem-erro').innerHTML = mostraMensagemDeErro(tipoDeInput, input)
+        input.parentElement.querySelector('.input-mensagem-erro').innerHTML = mostraMensagemDeErro(tipoDeInput, input)
     }
 }
 
 const tiposDeErro = [
     'valueMissing',
     'typeMismatch',
-    'patterMismatch',
+    'patternMismatch',
     'customError'
 ]
 
-
-const mensagemDeErro = {
+const mensagensDeErro = {
     nome: {
-        valueMissing: 'Ocampo nome não pode estar vazio.'
+        valueMissing: 'O campo de nome não pode estar vazio.'
     },
     email: {
         valueMissing: 'O campo de email não pode estar vazio.',
         typeMismatch: 'O email digitado não é válido.'
     },
     senha: {
-        valueMissing: 'O campo senha não pode estar vazio.',
+        valueMissing: 'O campo de senha não pode estar vazio.',
         patternMismatch: 'A senha deve conter entre 6 a 12 caracteres, deve conter pelo menos uma letra maiúscula, um número e não deve conter símbolos.'
     },
     dataNascimento: {
         valueMissing: 'O campo de data de nascimento não pode estar vazio.',
-        customError: 'Você deve ser maior de 18 anos para se cadastrar.'
+        customError: 'Você deve ser maior que 18 anos para se cadastrar.'
     },
     cpf: {
-        valueMissing: 'O campo de CPF não pode ser vazio.',
+        valueMissing: 'O campo de CPF não pode estar vazio.',
         customError: 'O CPF digitado não é válido.'
     },
     cep: {
-        valueMissing: 'O campo CEP não pode estar vazio.',
-        patternMismatch: 'O CEP digitado não é válido.'
+        valueMissing: 'O campo de CEP não pode estar vazio.',
+        patternMismatch: 'O CEP digitado não é válido.',
+        customError: 'Não foi possível buscar o CEP.'
     },
     logradouro: {
         valueMissing: 'O campo de logradouro não pode estar vazio.'
@@ -54,8 +54,10 @@ const mensagemDeErro = {
     },
     estado: {
         valueMissing: 'O campo de estado não pode estar vazio.'
+    },
+    preco: {
+        valueMissing: 'O campode preco não pode estar vazio'
     }
-
 }
 
 const validadores = {
@@ -71,6 +73,7 @@ function mostraMensagemDeErro(tipoDeInput, input) {
             mensagem = mensagensDeErro[tipoDeInput][erro]
         }
     })
+
     return mensagem
 }
 
@@ -81,7 +84,6 @@ function validaDataNascimento(input) {
     if (!maiorQue18(dataRecebida)) {
         mensagem = 'Você deve ser maior que 18 anos para se cadastrar.'
     }
-
 
     input.setCustomValidity(mensagem)
 }
@@ -124,32 +126,36 @@ function checaCPFRepetido(cpf) {
             cpfValido = false
         }
     })
+
     return cpfValido
 }
 
 function checaEstruturaCPF(cpf) {
     const multiplicador = 10
+
+    return checaDigitoVerificador(cpf, multiplicador)
 }
 
-function checaDigitoVerificador(cpf, multiplicador)
-if (multiplicador >= 12) {
-    return true
+function checaDigitoVerificador(cpf, multiplicador) {
+    if (multiplicador >= 12) {
+        return true
+    }
+
+    let multiplicadorInicial = multiplicador
+    let soma = 0
+    const cpfSemDigitos = cpf.substr(0, multiplicador - 1).split('')
+    const digitoVerificador = cpf.charAt(multiplicador - 1)
+    for (let contador = 0; multiplicadorInicial > 1; multiplicadorInicial--) {
+        soma = soma + cpfSemDigitos[contador] * multiplicadorInicial
+        contador++
+    }
+
+    if (digitoVerificador == confirmaDigito(soma)) {
+        return checaDigitoVerificador(cpf, multiplicador + 1)
+    }
+
+    return false
 }
-
-let multiplicadorInicial = multiplicador
-let soma = 0
-const cpfSemDigitos = cpf.substr(0, multiplicador - 1).split('')
-const digitoVerificador = cpf.charAt(multiplicador - 1)
-for (let contador = 0; multiplicadorInicial > 1; multiplicadorInicial--) {
-    soma = soma + cpfSemDigitos[contador * multiplicadorInicial]
-}
-
-
-if (digitoVerificador == confirmaDigito(soma)) {
-    return checaDigitoVerificador(cpf, multiplicador + 1)
-}
-
-return false
 
 function confirmaDigito(soma) {
     return 11 - (soma % 11)
@@ -157,7 +163,7 @@ function confirmaDigito(soma) {
 
 function recuperarCEP(input) {
     const cep = input.value.replace(/\D/g, '')
-    const url = 'https://viacep.com.br/ws/${cep}/json/'
+    const url = `https://viacep.com.br/ws/${cep}/json/`
     const options = {
         method: 'GET',
         mode: 'cors',
@@ -169,13 +175,26 @@ function recuperarCEP(input) {
     if (!input.validity.patternMismatch && !input.validity.valueMissing) {
         fetch(url, options).then(
             response => response.json()
-        ).then(data => {
-            console.log(data)
-        })
+        ).then(
+            data => {
+                if (data.erro) {
+                    input.setCustomValidity('Não foi possível buscar o CEP.')
+                    return
+                }
+                input.setCustomValidity('')
+                preencheCamposComCEP(data)
+                return
+            }
+        )
     }
 }
-// 123 456 789 09
 
-// let soma = (11 * 1) + (10 * 2) + (9 * 3)...(2 * 0)
+function preencheCamposComCEP(data) {
+    const logradouro = document.querySelector('[data-tipo="logradouro"]')
+    const cidade = document.querySelector('[data-tipo="cidade"]')
+    const estado = document.querySelector('[data-tipo="estado"]')
 
-// let digitoVerificador = 11 - (soma % 11)
+    logradouro.value = data.logradouro
+    cidade.value = data.localidade
+    estado.value = data.uf
+}
